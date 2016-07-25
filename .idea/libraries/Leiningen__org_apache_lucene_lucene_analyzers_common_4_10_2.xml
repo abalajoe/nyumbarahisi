@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Leiningen: org.apache.lucene/lucene-analyzers-common:4.10.2">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.m2/repository/org/apache/lucene/lucene-analyzers-common/4.10.2/lucene-analyzers-common-4.10.2.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
