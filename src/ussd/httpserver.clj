@@ -2,19 +2,19 @@
   ^{:author "jabala"
     :doc "HTTP Server"
     :added "1.0"}
-(:require [clojure.tools.logging :as log]
-          [ussd.utils.config :as config]
-          [ussd.utils.menu :as menu]
-          [ussd.session :as session]
-          [ussd.utils.util :as util]
-          [clojure.data.json :as json]
-          [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
-          [ussd.httpclient :as client])
+  (:require [clojure.tools.logging :as log]
+            [ussd.utils.config :as config]
+            [ussd.utils.menu :as menu]
+            [ussd.session :as session]
+            [ussd.utils.util :as util]
+            [clojure.data.json :as json]
+            [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
+            [ussd.httpclient :as client]
+            [ussd.model.datasource :as db])
   (:use org.httpkit.server
         [compojure.route :only [not-found]]
         [compojure.handler :only [site]] ; form, query params decode; cookie; session, etc
-        [compojure.core :only [defroutes GET POST DELETE ANY context]])
-  (import com.mode.sikika.SikikaVoiceCallService))
+        [compojure.core :only [defroutes GET POST DELETE ANY context]]))
 
 (defn initialize-http
   "Function defines server once"
@@ -40,44 +40,64 @@
   (session/clear-session sessionId)    ;; remove session ID from session
   (menu/exit-menu))                    ;; exit message
 
-(defn register-subscriber
-  "Register subscriber"
-  [sessionId msisdn]
-  (println "[] " sessionId (session/get-session-data sessionId) msisdn)
-  (util/parse-res sessionId (session/get-session-data sessionId) msisdn)
-  #_(case seventh-input
-    "1" (do
-          (util/parse-res sessionId (session/get-session-data sessionId) msisdn)) ;; register subscriber
-    nil (menu/register-menu)                                ;; register menu
-    "00" (main-menu sessionId)                              ;; main menu
-    "#" (exit-menu sessionId)                               ;; exit menu
-    (do                                                     ;; invalid choice
-      (session/modify-menu sessionId 0 6)
-      (menu/reset-register-menu))))                         ;; register menu
-
-(defn validate-year
+(defn validate-msisdn
   "Validate YOB entered by subscriber.
   Also register. "
-  [sessionId fifth-input msisdn]
-  (let [current-year (Integer/parseInt (last (clojure.string/split (str (java.util.Date.)) #" ")))
-        parse-year (try
+  [sessionId sixth-input]
+  (println sessionId)
+  (let [msisdn (try
+               (Integer/parseInt sixth-input)
+               (catch Exception e
+                 0))]
+    (cond
+      (= 0 msisdn) (invalid-choice-menu sessionId (menu/reset-msisdn-menu) 0 5) ;; invalid year return user to same menu
+      (>= 9 (count (clojure.string/trim sixth-input)))(invalid-choice-menu sessionId (menu/reset-msisdn-menu) 0 5)
+      (<= 13 (count (clojure.string/trim sixth-input)))(invalid-choice-menu sessionId (menu/reset-msisdn-menu) 0 5)
+      :else (do
+              (println "[] " sessionId (session/get-session-data sessionId) msisdn)
+              (util/parse-res sessionId (session/get-session-data sessionId))
+              )))) ;; register user
+
+(defn process-msisdn
+  "process age and register"
+  [sessionId]
+  (println "{ "(session/get-session-data sessionId) "} {" (get (session/get-session-data sessionId) 5))
+  (let [sixth-input (get (session/get-session-data sessionId) 5)]
+    (case sixth-input
+      nil (menu/msisdn-menu)                ;; age menu
+      (do
+        (validate-msisdn sessionId sixth-input)))))
+
+(defn validate-cost
+  "Validate YOB entered by subscriber.
+  Also register. "
+  [sessionId fifth-input]
+  (println sessionId)
+  (let [cost (try
                      (Integer/parseInt fifth-input)
                      (catch Exception e
                        0))]
     (cond
-      (or (not (= 4 (count fifth-input)))(= 0 parse-year)) (invalid-choice-menu sessionId (menu/age-menu-reset) 0 5) ;; invalid year return user to same menu
-      (< (- current-year (Long/parseLong fifth-input)) 10)(invalid-choice-menu sessionId (menu/underage-menu-reset) 0 5)
-      (> (- current-year (Long/parseLong fifth-input)) 85)(invalid-choice-menu sessionId (menu/overage-menu-reset) 0 5)
+      (= 0 cost) (invalid-choice-menu sessionId (menu/reset-cost-menu) 0 4) ;; invalid year return user to same menu
+      (>= 3 (count (clojure.string/trim fifth-input)))(invalid-choice-menu sessionId (menu/reset-cost-menu) 0 4)
       :else (do
-              (register-subscriber sessionId msisdn))))) ;; register user
+              (process-msisdn sessionId))))) ;; register user
+
+(defn process-cost
+  "process age and register"
+  [sessionId fifth-input]
+  (case fifth-input
+    nil (menu/cost-menu)                ;; age menu
+    (do
+      (validate-cost sessionId fifth-input)))) ;; check whether YOB is valid
 
 (defn process-age-register
   "process age and register"
   [sessionId fifth-input msisdn]
   (case fifth-input
-    nil (menu/age-menu)                ;; age menu
+    nil (menu/plot-menu)                ;; age menu
     (do
-      (validate-year sessionId fifth-input msisdn)))) ;; check whether YOB is valid
+      (validate-cost sessionId fifth-input)))) ;; check whether YOB is valid
 
 (defn back-menu
   "navigate user to previous menu"
@@ -85,16 +105,14 @@
   (session/modify-menu sessionId start end)
   menu)
 
-(defn deregister
-  "Deregister user from service"
-  [msisdn]
-  (let [msisdn-exists (client/validate-msisdn config/username config/password msisdn)
-        parse-msisdn (:status-msg (clojure.walk/keywordize-keys
-                                    (json/read-str msisdn-exists)))]
-    (case parse-msisdn
-      0 (str config/unregistered-sub)     ;; subscriber not registered
-      1 (str config/deregister-sub)       ;; subscriber successfully deregistered
-      2 (str config/deregister-error))))  ;; error occured in operation
+(defn get-data
+  "navigate user to previous menu"
+  [sessionId]
+  (let [levels (session/get-session-data sessionId)
+        data (util/parse-data levels)
+        k (atom 0)]
+    (doseq [x data]
+      (println (swap! k inc)". " (:cost x) " - " (:mobile x)))))
 
 (defn ussd-handler
   "Function displays menu"
@@ -131,7 +149,7 @@
                                           "1" (do
                                                 (case fourth-input
                                                   ("1" "2" "3" "4" "5") (do
-                                                                          (println "$$"))
+                                                                          (process-cost sessionId fifth-input))
                                                   nil (menu/plot-menu)
                                                   "00" (main-menu sessionId)
                                                   "#" (exit-menu sessionId)
@@ -207,7 +225,15 @@
                           (condp = second-input
                             "1" (do
                                   (condp = third-input
-                                    "1" (do (process-age-register sessionId fifth-input msisdn))
+                                    "1" (do
+                                          (case fourth-input
+                                            ("1" "2" "3" "4" "5") (do
+                                                                    (get-data sessionId))
+                                            nil (menu/plot-menu)
+                                            "00" (main-menu sessionId)
+                                            "#" (exit-menu sessionId)
+                                            "98" (back-menu sessionId (menu/nairobi-county-menu) 0 2)
+                                            (invalid-choice-menu sessionId (menu/reset-plot-menu) 0 3)))
                                     nil (menu/nairobi-county-menu)
                                     "00" (main-menu sessionId)
                                     "#" (exit-menu sessionId)
@@ -278,60 +304,9 @@
                     "#" (do (println "exit menu") (exit-menu sessionId))               ;; exit service
                     (do (println "invalid") (invalid-choice-menu sessionId (menu/reset-main-menu) 0 0)))))))))
 
-(defn voice-handler
-  "voice handler"
-  [req]
-  (log/infof "voice handler %s " req)
-  (let [subscriber-number (:callerNumber (:params req))
-        subscriber-number (Long/parseLong (subs subscriber-number 4))
-        campaign-res (client/get-msisdn-campaigns subscriber-number)
-        user-data (:user-data campaign-res)
-        filter-campaign (atom [])]
-    (log/infof "subscriber number %s %s" subscriber-number (type subscriber-number))
-    (if (empty? user-data)
-      (do
-        (log/info "empty resultset for subscriber " subscriber-number)
-        (util/unavailable-audio-voice-xml config/unavailable-audio-voice))
-      (do
-        (log/infof "campaign data for msisdn %s is %s" subscriber-number campaign-res)
-        (doseq [a (:user-data campaign-res)]
-          (if (= (count @filter-campaign) 2)
-            (do
-              (let [first-map (first @filter-campaign)
-                    first-cost (:campaigncost (first @filter-campaign))
-                    second-map (last @filter-campaign)
-                    second-cost (:campaigncost (last @filter-campaign))
-                    third-cost (:campaigncost a)
-                    min-campaign (min first-cost second-cost third-cost)]
-                (cond
-                  (= min-campaign first-cost)
-                  (do
-                    (reset! filter-campaign [])
-                    (swap! filter-campaign conj second-map a))
-                  (= min-campaign second-cost)
-                  (do
-                    (reset! filter-campaign [])
-                    (swap! filter-campaign conj first-map a))
-                  (= min-campaign third-cost)
-                  (do
-                    (log/info "no changes")))))
-            (do
-              (swap! filter-campaign conj a))))
-        (log/infof "Returned content for msisdn %s is %s and %s" subscriber-number @filter-campaign (:files (first @filter-campaign)))
-        (if (= (count @filter-campaign) 1)
-          (do
-            (log/infof "one campaign retrieved %s %s" @filter-campaign (count @filter-campaign))
-            (util/single-audio-voice-xml config/single-available-audio-voice (:files (first @filter-campaign))))
-          (do
-            (log/infof "two campaigns retrieved %s %s" @filter-campaign (count @filter-campaign))
-            (util/double-audio-voice-xml config/double-available-audio-voice (:files (first @filter-campaign))(:files (second @filter-campaign))))))))
-  #_(let [subscriber-number (-> req :params :callerNumber)]
-      (log/infof "the subscriber number is % " subscriber-number)))
-
 ;; routes
 (defroutes all-routes
            (POST "/mode/sikika/ussd/" [] ussd-handler)
-           (POST "/mode/sikika/voice/" [] voice-handler)
            (not-found "invalid request")) ;; return 404
 
 (def app

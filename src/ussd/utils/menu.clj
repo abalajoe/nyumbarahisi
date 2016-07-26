@@ -131,6 +131,36 @@
   []
   (str config/reset-location-menu))
 
+(defn reset-cost-menu
+  "Display reset cost menu"
+  []
+  (str config/reset-cost-menu))
+
+(defn cost-menu
+  "cost menu"
+  []
+  (str config/cost-menu))
+
+(defn reset-msisdn-menu
+  "Display reset msisdn menu"
+  []
+  (str config/reset-msisdn-menu))
+
+(defn msisdn-menu
+  "msisdn menu"
+  []
+  (str config/msisdn-menu))
+
+(defn successful-registration-menu
+  "successful-registration-menu"
+  []
+  (str config/successful-registration-menu))
+
+(defn unsuccessful-registration-menu
+  "unsuccessful-registration-menu"
+  []
+  (str config/unsuccessful-registration-menu))
+
 (defn reset-register-menu
   "Display reset register menu"
   []
