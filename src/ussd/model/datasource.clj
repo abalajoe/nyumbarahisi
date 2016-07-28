@@ -59,11 +59,11 @@
 
 (defn reg-owner
   "Function registers owner"
-  [location county plot cost mobile]
-  (println "== " location county plot cost mobile " ==")
+  [location county region plot cost mobile]
+  (println "== " location county region plot cost mobile " ==")
   (try
-    (exec-raw db ["insert into tbl_owners (location, county, plot, cost, mobile)
-                   values (?,?,?,?,?)" [location county plot cost mobile]])
+    (exec-raw db ["insert into tbl_owners (location, county, region, plot, cost, mobile)
+                   values (?,?,?,?,?,?)" [location county region plot cost mobile]])
     (catch SQLException sql
       (log/error "reg-owner SQL => " (.getMessage sql))
       0)

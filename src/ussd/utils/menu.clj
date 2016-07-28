@@ -136,6 +136,16 @@
   []
   (str config/reset-cost-menu))
 
+(defn region-menu
+  "Display reset cost menu"
+  []
+  (str config/region-menu))
+
+(defn reset-region-menu
+  "Display reset cost menu"
+  []
+  (str config/region-menu-reset))
+
 (defn cost-menu
   "cost menu"
   []

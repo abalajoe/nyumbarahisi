@@ -103,9 +103,10 @@
   (let [user (first ussd-str)
         location (second ussd-str)
         county (get ussd-str 2)
-        plot (get ussd-str 3)
-        cost (get ussd-str 4)
-        msisdn (get ussd-str 5)
+        region (get ussd-str 3)
+        plot (get ussd-str 4)
+        cost (get ussd-str 5)
+        msisdn (get ussd-str 6)
         parse-user (case user
                        "1" "owner"
                        "2" "client")
@@ -190,11 +191,16 @@
                      )
         ]
     (session/clear-session sessionId)
-    (log/info "Details [" parse-user (s/lower-case parse-location) (s/lower-case parse-county) (s/lower-case parse-plot) cost msisdn"]")
-    (if (not= 0 (db/reg-owner (s/lower-case parse-location) (s/lower-case parse-county) (s/lower-case parse-plot) (Long/parseLong cost) (Long/parseLong msisdn)))
-      (do
-        (log/info "successfully registered owner")
-        (menu/successful-registration-menu))
-      (do
-        (log/info "problem registering owner")
-        (menu/unsuccessful-registration-menu)))))
+
+    (let [location (s/lower-case parse-location)
+          county (s/lower-case parse-county)
+          region (s/replace (s/lower-case region) #" " "")
+          plot (s/lower-case parse-plot)]
+      (log/info "Details [" parse-user location county region plot cost msisdn"]")
+      (if (not= 0 (db/reg-owner location county region plot (Long/parseLong cost) (Long/parseLong msisdn)))
+        (do
+          (log/info "successfully registered owner")
+          (menu/successful-registration-menu))
+        (do
+          (log/info "problem registering owner")
+          (menu/unsuccessful-registration-menu))))))
