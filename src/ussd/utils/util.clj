@@ -1,5 +1,5 @@
 (ns ussd.utils.util
-  ^{:author "jabala"
+  ^{:author "joeabala"
     :doc "Helper Functions"
     :added "1.0"
     }
@@ -14,7 +14,8 @@
   [ussd-str]
   (let [location (second ussd-str)
         county (get ussd-str 2)
-        plot (get ussd-str 3)
+        region (get ussd-str 3)
+        plot (get ussd-str 4)
         parse-location (case location
                          "1" "Nairobi"
                          "2" "Coast"
@@ -94,8 +95,11 @@
                      "4" "Three Bedroom"
                      "5" "Four Bedroom"
                      )]
-    (log/info "Details [" (s/lower-case parse-location) (s/lower-case parse-county) (s/lower-case parse-plot)"]")
-    (db/get-houses (s/lower-case parse-location) (s/lower-case parse-county) (s/lower-case parse-plot))))
+    (let [location (s/lower-case parse-location)
+          county (s/lower-case parse-county)
+          plot (s/lower-case parse-plot)]
+      (log/info "Details [" location county region plot"]")
+      (db/get-houses location county region plot))))
 
 (defn parse-res
   "Function parses final ussd string"

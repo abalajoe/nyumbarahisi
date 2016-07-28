@@ -1,5 +1,5 @@
 (ns ussd.session
-  ^{:author "jabala"
+  ^{:author "joeabala"
     :doc "Session Management"
     :added "1.0"
     }

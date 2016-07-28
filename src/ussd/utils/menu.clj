@@ -1,5 +1,5 @@
 (ns ussd.utils.menu
-  ^{:author "jabala"
+  ^{:author "joeabala"
     :doc "Menu"
     :added "1.0"
     }
@@ -11,34 +11,19 @@
   (str config/main-menu))
 
 (defn reset-main-menu
-  "Display main menu"
+  "Display reset main menu"
   []
   (str config/reset-main-menu))
 
-(defn voice-response
-  "Display main menu"
-  []
-  (str config/voice-response))
-
-(defn gender-menu
-  "Display gender menu"
-  []
-  (str config/gender-menu))
-
 (defn plot-menu
-  "Display relationship status menu"
+  "Display plot menu"
   []
   (str config/plot-menu))
 
 (defn reset-plot-menu
-  "Display relationship status menu"
+  "Display reset plot menu"
   []
   (str config/reset-plot-menu))
-
-(defn occupation-menu
-  "Display occupation status menu"
-  []
-  (str config/occupation-menu))
 
 (defn exit-menu
   "Exit session message"
@@ -49,26 +34,6 @@
   "Display location menu"
   []
   (str config/location-menu))
-
-(defn age-menu
-  "Display age menu"
-  []
-  (str config/age-menu))
-
-(defn age-menu-reset
-  "Display age menu when invalid age is entered"
-  []
-  (str config/age-menu-reset))
-
-(defn underage-menu-reset
-  "Display age menu when invalid age is entered"
-  []
-  (str config/underage-menu-reset))
-
-(defn overage-menu-reset
-  "Display age menu when invalid age is entered"
-  []
-  (str config/overage-menu-reset))
 
 (defn nairobi-county-menu
   "Displays Nairobi county menu"
@@ -101,30 +66,14 @@
   (str config/riftvalley-county-menu))
 
 (defn western-county-menu
-  "Display Eastern county menu"
+  "Display western county menu"
   []
   (str config/western-county-menu))
 
 (defn nyanza-county-menu
-  "Display Eastern county menu"
+  "Display nyanza county menu"
   []
   (str config/nyanza-county-menu))
-
-(defn reset-menu
-  "Display reset menu"
-  []
-  (str config/reset-menu))
-
-(defn reset-gender-menu
-  "Display reset gender menu"
-  []
-  (str config/reset-gender-menu))
-
-
-(defn reset-occupation-menu
-  "Display reset occupation status menu"
-  []
-  (str config/reset-occupation-menu))
 
 (defn reset-location-menu
   "Display reset location menu"
@@ -137,17 +86,12 @@
   (str config/reset-cost-menu))
 
 (defn region-menu
-  "Display reset cost menu"
+  "Display region menu"
   []
   (str config/region-menu))
 
-(defn reset-region-menu
-  "Display reset cost menu"
-  []
-  (str config/region-menu-reset))
-
 (defn cost-menu
-  "cost menu"
+  "Display cost menu"
   []
   (str config/cost-menu))
 
@@ -157,24 +101,19 @@
   (str config/reset-msisdn-menu))
 
 (defn msisdn-menu
-  "msisdn menu"
+  "Display msisdn menu"
   []
   (str config/msisdn-menu))
 
 (defn successful-registration-menu
-  "successful-registration-menu"
+  "Display successful registration menu"
   []
   (str config/successful-registration-menu))
 
 (defn unsuccessful-registration-menu
-  "unsuccessful-registration-menu"
+  "Display unsuccessful registration menu"
   []
   (str config/unsuccessful-registration-menu))
-
-(defn reset-register-menu
-  "Display reset register menu"
-  []
-  (str config/reset-register-menu))
 
 (defn reset-nairobi-county-menu
   "Display reset Nairobi county menu"
@@ -215,8 +154,3 @@
   "Display reset Nyanza county menu"
   []
   (str config/reset-nyanza-county-menu))
-
-(defn register-menu
-  "Function displays register menu"
-  []
-  (str config/register-menu))

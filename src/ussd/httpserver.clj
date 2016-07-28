@@ -7,10 +7,7 @@
             [ussd.utils.menu :as menu]
             [ussd.session :as session]
             [ussd.utils.util :as util]
-            [clojure.data.json :as json]
-            [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
-            [ussd.httpclient :as client]
-            [ussd.model.datasource :as db])
+            [ring.middleware.defaults :refer [wrap-defaults site-defaults]])
   (:use org.httpkit.server
         [compojure.route :only [not-found]]
         [compojure.handler :only [site]] ; form, query params decode; cookie; session, etc
@@ -23,7 +20,7 @@
   (log/info "initializing http server ..."))
 
 (defn invalid-choice-menu
-  "Navigate user to same menu"
+  "Navigate user to same menu indicating invalid choice"
   [sessionId menu start end]
   (session/modify-menu sessionId start end)
   menu)
@@ -41,10 +38,8 @@
   (menu/exit-menu))                    ;; exit message
 
 (defn validate-msisdn
-  "Validate YOB entered by subscriber.
-  Also register. "
+  "Validate subscriber number"
   [sessionId seventh-input]
-  (println sessionId)
   (let [msisdn (try
                (Integer/parseInt seventh-input)
                (catch Exception e
@@ -54,12 +49,10 @@
       (>= 9 (count (clojure.string/trim seventh-input)))(invalid-choice-menu sessionId (menu/reset-msisdn-menu) 0 6)
       (<= 13 (count (clojure.string/trim seventh-input)))(invalid-choice-menu sessionId (menu/reset-msisdn-menu) 0 6)
       :else (do
-              (println "[] " sessionId (session/get-session-data sessionId) msisdn)
-              (util/parse-res sessionId (session/get-session-data sessionId))
-              )))) ;; register user
+              (util/parse-res sessionId (session/get-session-data sessionId)))))) ;; register user
 
 (defn process-msisdn
-  "process age and register"
+  "process subscriber number"
   [sessionId]
   (let [seventh-input (get (session/get-session-data sessionId) 6)]
     (case seventh-input
@@ -68,8 +61,7 @@
         (validate-msisdn sessionId seventh-input)))))
 
 (defn validate-cost
-  "Validate YOB entered by subscriber.
-  Also register. "
+  "Validate cost"
   [sessionId sixth-input]
   (println sessionId)
   (let [cost (try
@@ -83,20 +75,12 @@
               (process-msisdn sessionId))))) ;; register user
 
 (defn process-cost
-  "process age and register"
+  "process cost"
   [sessionId sixth-input]
   (case sixth-input
     nil (menu/cost-menu)                ;; age menu
     (do
       (validate-cost sessionId sixth-input)))) ;; check whether YOB is valid
-
-(defn process-age-register
-  "process age and register"
-  [sessionId fifth-input msisdn]
-  (case fifth-input
-    nil (menu/plot-menu)                ;; age menu
-    (do
-      (validate-cost sessionId fifth-input)))) ;; check whether YOB is valid
 
 (defn back-menu
   "navigate user to previous menu"
@@ -105,12 +89,11 @@
   menu)
 
 (defn process-region
-    "navigate user to previous menu"
-    [fourth-input sessionId fifth-input]
-  (println "## [" fourth-input "][" sessionId "][" fifth-input"]")
+  "process subscriber region"
+  [fourth-input sessionId fifth-input]
   (case fourth-input
-    nil (do (println "@ " )(menu/region-menu))
-    (do (println "><")
+    nil (do (menu/region-menu))
+    (do
         (case fifth-input
           ("1" "2" "3" "4" "5") (do
                                   (let [sixth-input (get (session/get-session-data sessionId) 5)]
@@ -122,13 +105,30 @@
           (invalid-choice-menu sessionId (menu/reset-plot-menu) 0 4)))))
 
 (defn get-data
-  "navigate user to previous menu"
+  "get houses"
   [sessionId]
   (let [levels (session/get-session-data sessionId)
         data (util/parse-data levels)
         k (atom 0)]
-    (doseq [x data]
-      (println (swap! k inc)". " (:cost x) " - " (:mobile x)))))
+    (if (seq data)
+      (for [x data]
+        (str (swap! k inc)". " (:cost x) " - " (:mobile x)))
+      (str "No Houses mathch this description. Thank you"))))
+
+(defn get-region
+  "get subscriber region"
+  [fourth-input sessionId fifth-input]
+  (case fourth-input
+    nil (do (menu/region-menu))
+    (do
+        (case fifth-input
+          ("1" "2" "3" "4" "5") (do
+                                  (get-data sessionId))
+          nil (menu/plot-menu)
+          "00" (main-menu sessionId)
+          "#" (exit-menu sessionId)
+          "98" (back-menu sessionId (menu/nairobi-county-menu) 0 3)
+          (invalid-choice-menu sessionId (menu/reset-plot-menu) 0 4)))))
 
 (defn ussd-handler
   "Function displays menu"
@@ -137,7 +137,6 @@
   (let [sessionId (-> req  :params :sessionId)              ;; get session ID
         serviceCode (-> req  :params :serviceCode)          ;; get service code
         phone-number (-> req  :params :phoneNumber)               ;; get phone number
-        msisdn (subs phone-number 4)
         text (-> req  :params :text)]                       ;; get text
           ;(or "empty" "inactive")
           (let []
@@ -242,14 +241,7 @@
                             "1" (do
                                   (condp = third-input
                                     "1" (do
-                                          (case fourth-input
-                                            ("1" "2" "3" "4" "5") (do
-                                                                    (get-data sessionId))
-                                            nil (menu/plot-menu)
-                                            "00" (main-menu sessionId)
-                                            "#" (exit-menu sessionId)
-                                            "98" (back-menu sessionId (menu/nairobi-county-menu) 0 2)
-                                            (invalid-choice-menu sessionId (menu/reset-plot-menu) 0 3)))
+                                          (get-region fourth-input sessionId fifth-input))
                                     nil (menu/nairobi-county-menu)
                                     "00" (main-menu sessionId)
                                     "#" (exit-menu sessionId)
@@ -257,59 +249,59 @@
                                     (invalid-choice-menu sessionId (menu/reset-nairobi-county-menu) 0 2)))
                             "2" (do
                                   (cond
-                                    (not (= -1 (.indexOf ["1" "2" "3" "4" "5" "6"] fourth-input))) (do (process-age-register sessionId fifth-input msisdn))
-                                    (= nil fourth-input) (menu/coast-county-menu)
-                                    (= "00" fourth-input) (main-menu sessionId)
-                                    (= "#" fourth-input) (exit-menu sessionId)
-                                    (= "98" fourth-input) (back-menu sessionId (menu/location-menu) 0 1)
+                                    (not (= -1 (.indexOf ["1" "2" "3" "4" "5" "6"] third-input))) (do (get-region fourth-input sessionId fifth-input))
+                                    (= nil third-input) (menu/coast-county-menu)
+                                    (= "00" third-input) (main-menu sessionId)
+                                    (= "#" third-input) (exit-menu sessionId)
+                                    (= "98" third-input) (back-menu sessionId (menu/location-menu) 0 1)
                                     :else (invalid-choice-menu sessionId (menu/reset-coast-county-menu) 0 2)))
                             "3" (do
                                   (cond
-                                    (not (= -1 (.indexOf ["1" "2" "3"] fourth-input))) (do (process-age-register sessionId fifth-input msisdn))
-                                    (= nil fourth-input) (menu/north-eastern-county-menu)
-                                    (= "00" fourth-input) (main-menu sessionId)
-                                    (= "#" fourth-input) (exit-menu sessionId)
-                                    (= "98" fourth-input) (back-menu sessionId (menu/location-menu) 0 1)
+                                    (not (= -1 (.indexOf ["1" "2" "3"] third-input))) (do (get-region fourth-input sessionId fifth-input))
+                                    (= nil third-input) (menu/north-eastern-county-menu)
+                                    (= "00" third-input) (main-menu sessionId)
+                                    (= "#" third-input) (exit-menu sessionId)
+                                    (= "98" third-input) (back-menu sessionId (menu/location-menu) 0 1)
                                     :else (invalid-choice-menu sessionId (menu/reset-north-eastern-county-menu) 0 2)))
                             "4" (do
                                   (cond
-                                    (not (= -1 (.indexOf ["1" "2" "3" "4" "5" "6" "7" "8"] fourth-input))) (do (process-age-register sessionId fifth-input msisdn))
-                                    (= nil fourth-input) (menu/eastern-county-menu)
-                                    (= "00" fourth-input) (main-menu sessionId)
-                                    (= "#" fourth-input) (exit-menu sessionId)
-                                    (= "98" fourth-input) (back-menu sessionId (menu/location-menu) 0 1)
+                                    (not (= -1 (.indexOf ["1" "2" "3" "4" "5" "6" "7" "8"] third-input))) (do (get-region fourth-input sessionId fifth-input))
+                                    (= nil third-input) (menu/eastern-county-menu)
+                                    (= "00" third-input) (main-menu sessionId)
+                                    (= "#" third-input) (exit-menu sessionId)
+                                    (= "98" third-input) (back-menu sessionId (menu/location-menu) 0 1)
                                     :else (invalid-choice-menu sessionId (menu/reset-eastern-county-menu) 0 2)))
                             "5" (do
                                   (cond
-                                    (not (= -1 (.indexOf ["1" "2" "3" "4" "5"] fourth-input))) (do (process-age-register sessionId fifth-input msisdn))
-                                    (= nil fourth-input) (menu/central-county-menu)
-                                    (= "00" fourth-input) (main-menu sessionId)
-                                    (= "#" fourth-input) (exit-menu sessionId)
-                                    (= "98" fourth-input) (back-menu sessionId (menu/location-menu) 0 1)
+                                    (not (= -1 (.indexOf ["1" "2" "3" "4" "5"] third-input))) (do (get-region fourth-input sessionId fifth-input))
+                                    (= nil third-input) (menu/central-county-menu)
+                                    (= "00" third-input) (main-menu sessionId)
+                                    (= "#" third-input) (exit-menu sessionId)
+                                    (= "98" third-input) (back-menu sessionId (menu/location-menu) 0 1)
                                     :else (invalid-choice-menu sessionId (menu/reset-central-county-menu) 0 2)))
                             "6" (do
                                   (cond
-                                    (not (= -1 (.indexOf ["1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14"] fourth-input))) (do (process-age-register sessionId fifth-input msisdn))
-                                    (= nil fourth-input) (menu/riftvalley-county-menu)
-                                    (= "00" fourth-input) (main-menu sessionId)
-                                    (= "#" fourth-input) (exit-menu sessionId)
-                                    (= "98" fourth-input) (back-menu sessionId (menu/location-menu) 0 1)
+                                    (not (= -1 (.indexOf ["1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14"] third-input))) (do (get-region fourth-input sessionId fifth-input))
+                                    (= nil third-input) (menu/riftvalley-county-menu)
+                                    (= "00" third-input) (main-menu sessionId)
+                                    (= "#" third-input) (exit-menu sessionId)
+                                    (= "98" third-input) (back-menu sessionId (menu/location-menu) 0 1)
                                     :else (invalid-choice-menu sessionId (menu/reset-riftvalley-county-menu) 0 2)))
                             "7" (do
                                   (cond
-                                    (not (= -1 (.indexOf ["1" "2" "3" "4"] fourth-input))) (do (process-age-register sessionId fifth-input msisdn))
-                                    (= nil fourth-input) (menu/western-county-menu)
-                                    (= "00" fourth-input) (main-menu sessionId)
-                                    (= "#" fourth-input) (exit-menu sessionId)
-                                    (= "98" fourth-input) (back-menu sessionId (menu/location-menu) 0 1)
+                                    (not (= -1 (.indexOf ["1" "2" "3" "4"] third-input))) (do (get-region fourth-input sessionId fifth-input))
+                                    (= nil third-input) (menu/western-county-menu)
+                                    (= "00" third-input) (main-menu sessionId)
+                                    (= "#" third-input) (exit-menu sessionId)
+                                    (= "98" third-input) (back-menu sessionId (menu/location-menu) 0 1)
                                     :else (invalid-choice-menu sessionId (menu/reset-western-county-menu) 0 2)))
                             "8" (do
                                   (cond
-                                    (not (= -1 (.indexOf ["1" "2" "3" "4"] fourth-input))) (do (process-age-register sessionId fifth-input msisdn))
-                                    (= nil fourth-input) (menu/nyanza-county-menu)
-                                    (= "00" fourth-input) (main-menu sessionId)
-                                    (= "#" fourth-input) (exit-menu sessionId)
-                                    (= "98" fourth-input) (back-menu sessionId (menu/location-menu) 0 1)
+                                    (not (= -1 (.indexOf ["1" "2" "3" "4" "5" "6"] third-input))) (do (get-region fourth-input sessionId fifth-input))
+                                    (= nil third-input) (menu/nyanza-county-menu)
+                                    (= "00" third-input) (main-menu sessionId)
+                                    (= "#" third-input) (exit-menu sessionId)
+                                    (= "98" third-input) (back-menu sessionId (menu/location-menu) 0 1)
                                     :else (invalid-choice-menu sessionId (menu/reset-nyanza-county-menu) 0 2)))
                             nil (menu/location-menu)
                             "00" (main-menu sessionId)
@@ -322,7 +314,7 @@
 
 ;; routes
 (defroutes all-routes
-           (POST "/mode/sikika/ussd/" [] ussd-handler)
+           (POST "/ussd/" [] ussd-handler)
            (not-found "invalid request")) ;; return 404
 
 (def app

@@ -23,7 +23,6 @@
                  [org.slf4j/slf4j-log4j12 "1.6.4"]
                  [ring/ring-defaults "0.1.2"]
                  [com.novemberain/langohr "3.0.1"]
-                 [sikikavoicecallapi "0.0.1"]
                  [lib-noir "0.9.9"]]
 
   :main ^:skip-aot ussd.core

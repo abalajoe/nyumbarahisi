@@ -1,6 +1,6 @@
 (ns ussd.core (:gen-class)
   ^{:author "jabala"
-    :doc "The Sikika USSD Service API"
+    :doc "The Nyumba Rahisi USSD Service API"
     :added "1.0"
     }
   (:require [clojure.tools.logging :as log]
@@ -19,7 +19,7 @@
   "main entry of application"
   [& args]
   (log/info "===================================================")
-  (log/info "SIKIKA USSD ADAPTER API - VERSION 1.1.0")
+  (log/info "NYUMBA RAHISI USSD ADAPTER API - VERSION 1.1.0")
   (log/info "===================================================")
 
   (config/load-configuration)                               ;; load configuration
