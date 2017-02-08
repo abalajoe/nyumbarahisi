@@ -1,6 +1,6 @@
 # ussd
 
-A Clojure library designed to ... well, that part is up to you.
+A USSD library designed for searching for vacant houses.
 
 ## Usage
 
